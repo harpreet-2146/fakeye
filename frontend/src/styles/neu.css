@@ -4,6 +4,7 @@
   box-shadow:
     8px 8px 18px rgba(0, 0, 0, 0.7),
     -8px -8px 18px rgba(40, 40, 40, 0.25);
+  border: 1px solid rgba(255,255,255,0.02);
 }
 
 .neu-inset {
@@ -13,3 +14,8 @@
     inset 6px 6px 14px rgba(0, 0, 0, 0.7),
     inset -6px -6px 14px rgba(40, 40, 40, 0.2);
 }
+
+.rounded-3xl { border-radius: 28px; }
+.rounded-2xl { border-radius: 20px; }
+
+.shadow-neu-sm { box-shadow: 6px 6px 14px rgba(0,0,0,0.7), -6px -6px 14px rgba(40,40,40,0.18); }

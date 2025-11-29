@@ -1,5 +1,5 @@
-fastapi
-uvicorn[standard]
+fastapi==0.99.1
+uvicorn==0.22.0
 httpx
 beautifulsoup4
 playwright
@@ -12,3 +12,4 @@ python-multipart
 pydantic
 python-dotenv
 uvicorn
+requests==2.31.0

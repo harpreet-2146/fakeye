@@ -1,5 +1,9 @@
 import Home from "./pages/Home";
-
+import FakeCheck from "./components/FakeCheck";
 export default function App() {
-  return <Home />;
+   return (
+    <div className="min-h-screen bg-gray-50 p-6">
+      <FakeCheck />
+    </div>
+  );
 }
