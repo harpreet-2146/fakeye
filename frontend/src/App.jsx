@@ -1,9 +1,12 @@
 import Home from "./pages/Home";
 import FakeCheck from "./components/FakeCheck";
+import FakeCheckerSexy from "./components/FakeCheckerSexy";
 export default function App() {
    return (
     <div className="min-h-screen bg-gray-50 p-6">
       <FakeCheck />
+      <FakeCheckerSexy/>
+      <Home/>
     </div>
   );
 }
