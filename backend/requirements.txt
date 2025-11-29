@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+httpx
+beautifulsoup4
+playwright
+newspaper3k
+transformers
+torch
+sentence-transformers
+faiss-cpu
+python-multipart
+pydantic
+python-dotenv
+uvicorn
