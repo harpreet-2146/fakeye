@@ -227,11 +227,7 @@ export default function Home() {
 
             {resultRaw && !loading && (
               <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-                <div className="neu p-4 rounded-2xl">
-                  <h3 className="text-sm text-slate-400 mb-3">Summary</h3>
-                  <p className="text-sm text-slate-200">{mapped.summary}</p>
-                </div>
-
+                {/* Top evidence (summary card removed per request) */}
                 <div>
                   <h3 className="text-sm text-slate-400 mb-3">Top evidence</h3>
                   <div className="space-y-3">
