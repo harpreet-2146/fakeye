@@ -1,6 +1,7 @@
+// src/components/VerdictCard.jsx
 import React from "react";
 
-export default function VerdictCard({ verdict="Unverifiable", confidence=0, summary="" }){
+export default function VerdictCard({ verdict = "Unverifiable", confidence = 0, summary = "" }) {
   const colorClass = verdict === "True" ? "text-emerald-300" : verdict === "False" ? "text-rose-300" : "text-amber-300";
   const bgClass = verdict === "True" ? "bg-emerald-500/6 border-emerald-400/10" : verdict === "False" ? "bg-rose-500/6 border-rose-400/10" : "bg-amber-500/6 border-amber-400/10";
 

@@ -1,5 +1,6 @@
 // src/pages/Home.jsx
 import React, { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import SearchBar from "../components/SearchBar";
 import VerdictCard from "../components/VerdictCard";
 import EvidenceCard from "../components/EvidenceCard";
@@ -8,47 +9,101 @@ const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 const HISTORY_KEY = "fakeye_history_v1";
 
 /**
- * Helpers to adapt backend -> UI shape
- * backend returns { verdict: "likely_real"|"uncertain"|"suspicious", verdict_score: {...}, top_matches: [{title,link,snippet}] }
- * VerdictCard expects verdict="True"/"False"/"Unverifiable", confidence=number (0-100), summary=string
- * EvidenceCard expects item fields: url, publisher, snippet, stance, stance_conf, semantic_sim
+ * mapBackendToVerdict: robust mapping for both old & new backend responses.
+ * - new backend: verdict_raw_label, verdict_label, verdict_machine_label, verdict_percent
+ * - legacy backend: verdict (likely_real|suspicious|...), verdict_score { result_count, credible_host_count }
  */
-
 function mapBackendToVerdict(be) {
   if (!be) return { verdict: "Unverifiable", confidence: 0, summary: "" };
-  const { verdict, verdict_score = {} } = be;
-  // confidence heuristic: credible_host_count / max(1, result_count) scaled
-  const rc = verdict_score.result_count || 0;
-  const cred = verdict_score.credible_host_count || 0;
-  const confidence = Math.min(100, Math.round((cred / Math.max(1, rc)) * 100));
-  const summary =
-    verdict === "likely_real"
-      ? "Multiple credible sources report similar information."
-      : verdict === "suspicious"
-      ? "No matching credible sources found; the claim appears dubious."
-      : "Some matches found but context is uncertain — inspect the links.";
 
-  const mappedVerdict =
-    verdict === "likely_real" ? "True" : verdict === "suspicious" ? "False" : "Unverifiable";
+  // Prefer new fields
+  const rawLabel = be.verdict_raw_label || null; // "True"/"False"/"Mixture"/"Unverifiable"
+  const humanLabel = be.verdict_label || null;
+  const machineLabel = be.verdict_machine_label || be.verdict || null;
+  const percent = typeof be.verdict_percent === "number" ? be.verdict_percent : null;
+
+  // legacy
+  const legacy_verdict = be.verdict;
+  const legacy_score = be.verdict_score || {};
+
+  // Determine mapped verdict
+  let mappedVerdict;
+  if (rawLabel === "True" || (machineLabel && machineLabel.toString().toLowerCase().includes("true"))) mappedVerdict = "True";
+  else if (rawLabel === "False" || (machineLabel && machineLabel.toString().toLowerCase().includes("false"))) mappedVerdict = "False";
+  else if (rawLabel === "Mixture") mappedVerdict = "Unverifiable";
+  else if (rawLabel === "Unverifiable") mappedVerdict = "Unverifiable";
+  else {
+    mappedVerdict = legacy_verdict === "likely_real" ? "True" : legacy_verdict === "suspicious" ? "False" : "Unverifiable";
+  }
+
+  // Confidence: prefer percent, else legacy heuristic, else infer from machineLabel
+  let confidence = 0;
+  if (percent !== null) {
+    confidence = Math.round(Math.max(0, Math.min(100, percent)));
+  } else if (legacy_score && (legacy_score.result_count || legacy_score.credible_host_count)) {
+    const rc = legacy_score.result_count || 0;
+    const cred = legacy_score.credible_host_count || 0;
+    confidence = Math.min(100, Math.round((cred / Math.max(1, rc)) * 100));
+  } else {
+    if (machineLabel && machineLabel.toString().toLowerCase().includes("definitely")) confidence = 90;
+    else if (machineLabel && machineLabel.toString().toLowerCase().includes("likely")) confidence = 75;
+    else if (machineLabel && machineLabel.toString().toLowerCase().includes("possibly")) confidence = 55;
+    else confidence = 30;
+  }
+
+  // Summary: prefer returned summary
+  const summary = be.verdict_summary || be.summary || (
+    mappedVerdict === "True"
+      ? "Multiple credible sources report similar information."
+      : mappedVerdict === "False"
+      ? "No matching credible sources found; the claim appears dubious."
+      : "Some matches found but context is uncertain — inspect the links."
+  );
 
   return { verdict: mappedVerdict, confidence, summary };
 }
 
-function mapMatchesToEvidence(matches = [], verdictLabel) {
-  // Create items shaped for EvidenceCard. We derive 'stance' from global verdict.
+/**
+ * mapMatchesToEvidence: canonicalize match objects to the shape EvidenceCard expects.
+ * Accepts both new 'top_matches' items and older shapes.
+ */
+function mapMatchesToEvidence(matches = [], backendLabelOrMachineLabel) {
   return matches.map((m) => {
-    const stance =
-      verdictLabel === "likely_real" ? "support" : verdictLabel === "suspicious" ? "contradict" : "neutral";
-    // stance_conf and semantic_sim are heuristics: try to use snippet length or leave defaults
-    const stance_conf = stance === "support" ? 0.85 : stance === "contradict" ? 0.78 : 0.45;
-    const semantic_sim = Math.min(0.99, Math.max(0.12, (m.snippet?.length || 40) / 200));
+    const url = m.url || m.link || m.href || null;
+
+    let publisher = m.publisher || m.title || null;
+    if (!publisher && url) {
+      try {
+        publisher = new URL(url).hostname.replace("www.", "");
+      } catch (e) {
+        publisher = url;
+      }
+    }
+
+    const snippet = m.snippet || m.description || m.summary || "";
+
+    let stance = (m.stance || "").toLowerCase();
+    if (!stance) {
+      if (backendLabelOrMachineLabel) {
+        const bl = backendLabelOrMachineLabel.toString().toLowerCase();
+        if (bl.includes("true") || bl.includes("real") || bl.includes("support")) stance = "support";
+        else if (bl.includes("false") || bl.includes("suspicious") || bl.includes("contradict")) stance = "contradict";
+        else stance = "neutral";
+      } else {
+        stance = "neutral";
+      }
+    }
+
+    const stance_conf = typeof m.stance_conf === "number" ? m.stance_conf : (m.score || m.semantic_sim || (stance === "support" ? 0.7 : stance === "contradict" ? 0.65 : 0.45));
+    const semantic_sim = typeof m.semantic_sim === "number" ? m.semantic_sim : (m.score || Math.min(0.95, Math.max(0.12, (snippet.length || 40) / 220)));
+
     return {
-      url: m.link || m.url,
-      publisher: m.title || (m.link ? new URL(m.link).hostname : undefined),
-      snippet: m.snippet || m.description || "",
+      url,
+      publisher,
+      snippet,
       stance,
-      stance_conf,
-      semantic_sim,
+      stance_conf: Number(stance_conf),
+      semantic_sim: Number(semantic_sim),
     };
   });
 }
@@ -93,10 +148,10 @@ export default function Home() {
       }
 
       const json = await res.json();
-      // store raw for UI mapping
+      // debug log for developer tools
+      console.debug("API /predict response:", json);
       setResultRaw(json);
 
-      // save to history (most recent first)
       setHistory((h) => [{ q, raw: json, ts: Date.now() }, ...h.filter((x) => x.q !== q)].slice(0, 30));
     } catch (e) {
       console.error(e);
@@ -112,9 +167,8 @@ export default function Home() {
   }
 
   const mapped = mapBackendToVerdict(resultRaw);
-  const evidenceItems = mapMatchesToEvidence(resultRaw?.top_matches || [], resultRaw?.verdict);
+  const evidenceItems = mapMatchesToEvidence(resultRaw?.top_matches || resultRaw?.topMatches || resultRaw?.matches || [], resultRaw?.verdict_raw_label || resultRaw?.verdict_machine_label || resultRaw?.verdict);
 
-  // Animation states: headline shrinks when result present
   const hasResult = !!resultRaw;
 
   return (
@@ -147,14 +201,11 @@ export default function Home() {
           </div>
         </motion.header>
 
-        {/* Search */}
         <motion.div layout className="mt-8">
           <SearchBar onSearch={onSearch} defaultValue={query} loading={loading} />
         </motion.div>
 
-        {/* Content area */}
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left: results */}
           <div className="lg:col-span-2 space-y-6">
             <AnimatePresence>
               {loading && (
@@ -166,21 +217,14 @@ export default function Home() {
               )}
             </AnimatePresence>
 
-            {/* Verdict area */}
             <AnimatePresence>
               {resultRaw && !loading && (
-                <motion.div
-                  key="result"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 8 }}
-                >
+                <motion.div key="result" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}>
                   <VerdictCard verdict={mapped.verdict} confidence={mapped.confidence} summary={mapped.summary} />
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {/* Explanation / evidence */}
             {resultRaw && !loading && (
               <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
                 <div className="neu p-4 rounded-2xl">
@@ -198,7 +242,6 @@ export default function Home() {
             )}
           </div>
 
-          {/* Right: history + quick info */}
           <aside className="space-y-4">
             <div className="neu p-4 rounded-2xl">
               <div className="flex items-center justify-between">
@@ -231,7 +274,6 @@ export default function Home() {
           </aside>
         </div>
 
-        {/* Footer */}
         <footer className="mt-10 text-center text-xs text-slate-500">
           Built with ❤️ — Fakeye
         </footer>

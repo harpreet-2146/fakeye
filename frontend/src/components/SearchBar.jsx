@@ -1,11 +1,16 @@
-import React, { useState } from "react";
+// src/components/SearchBar.jsx
+import React, { useState, useEffect } from "react";
 
-export default function SearchBar({ onSearch, defaultValue="", loading=false }){
+export default function SearchBar({ onSearch, defaultValue = "", loading = false }) {
   const [value, setValue] = useState(defaultValue);
 
-  function submit(e){
+  useEffect(() => {
+    setValue(defaultValue || "");
+  }, [defaultValue]);
+
+  function submit(e) {
     e?.preventDefault();
-    if(!value?.trim()) return;
+    if (!value?.trim()) return;
     onSearch(value.trim());
   }
 
@@ -13,8 +18,8 @@ export default function SearchBar({ onSearch, defaultValue="", loading=false }){
     <form onSubmit={submit} className="flex gap-3">
       <input
         value={value}
-        onChange={(e)=>setValue(e.target.value)}
-        placeholder="e.g. Indira Gandhi was killed by Muslims"
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="e.g. Indira Gandhi was killed by her bodyguards"
         className="flex-1 p-4 rounded-3xl neu-inset outline-none placeholder:text-slate-500 text-sm"
       />
       <button
