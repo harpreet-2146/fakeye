@@ -1,6 +1,5 @@
 // src/pages/Home.jsx
 import React, { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import SearchBar from "../components/SearchBar";
 import VerdictCard from "../components/VerdictCard";
 import EvidenceCard from "../components/EvidenceCard";
