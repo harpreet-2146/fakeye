@@ -6,7 +6,7 @@ from typing import List
 from dotenv import load_dotenv
 load_dotenv()
 
-
+from app.retriever.improved_stance import simple_stance_heuristic
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -32,25 +32,6 @@ def serp_search(query: str, api_key: str, num: int = 10) -> dict:
     r = requests.get(url, params=params, timeout=15)
     r.raise_for_status()
     return r.json()
-
-def simple_stance_heuristic(text: str, claim: str) -> str:
-    if not text:
-        return "neutral"
-    t = text.lower()
-    contradict_kws = ["not true", "false", "hoax", "debunk", "fake", "lies", "no evidence", "incorrect"]
-    support_kws = ["confirmed", "obituary", "died", "dies", "dead", "passed away", "killed", "assassinated", "murdered", "shot", "official", "report", "reports", "announced"]
-    for kw in contradict_kws:
-        if kw in t:
-            return "contradict"
-    for kw in support_kws:
-        if kw in t:
-            return "support"
-    claim_words = [w for w in claim.lower().split() if len(w) > 3]
-    if claim_words:
-        matches = sum(1 for w in claim_words if w in t)
-        if matches >= max(1, len(claim_words)//3):
-            return "support"
-    return "neutral"
 
 def map_percent_to_label(percent: float, raw_label: str) -> dict:
     p = float(percent)
