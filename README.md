@@ -146,36 +146,6 @@ Analyzes each source with priority checks:
 - **False**: 0-40% confidence
 - **Unverifiable**: 40-60% confidence (mixed or insufficient evidence)
 
-## Project Structure
-
-```
-fakeye/
-├── backend/
-│   ├── app/
-│   │   ├── main.py                 # FastAPI app & endpoints
-│   │   ├── models/
-│   │   │   └── embedder.py         # Sentence transformer wrapper
-│   │   ├── retriever/
-│   │   │   ├── stance.py           # Stance detection logic
-│   │   │   ├── aggregate.py        # Verdict aggregation
-│   │   │   └── rank.py             # Semantic ranking
-│   │   └── schemas/
-│   │       └── response.py         # Pydantic models
-│   ├── requirements.txt
-│   └── .env
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── VerdictCard.jsx     # Main verdict display
-│   │   │   ├── EvidenceCard.jsx    # Source evidence cards
-│   │   │   └── SearchBar.jsx       # Input component
-│   │   ├── pages/
-│   │   │   └── Home.jsx            # Main page
-│   │   └── App.jsx
-│   ├── package.json
-│   └── .env
-└── README.md
-```
 
 ## API Endpoints
 
@@ -257,10 +227,6 @@ This is an academic project. For improvements:
 3. Commit changes (`git commit -m "feat: add improvement"`)
 4. Push to branch (`git push origin feature/improvement`)
 5. Open Pull Request
-
-## License
-
-MIT License - see LICENSE file for details
 
 ## Acknowledgments
 
