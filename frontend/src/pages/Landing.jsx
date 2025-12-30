@@ -84,12 +84,7 @@ export default function Landing() {
               </svg>
             </button>
 
-            <a
-              href="#about"
-              className="text-sm text-gray-400 hover:text-white transition underline-offset-4"
-            >
-              Learn more
-            </a>
+        
           </div>
 
           <div className="mt-6 flex items-center justify-center gap-3 flex-wrap">
