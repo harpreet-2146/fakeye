@@ -5,67 +5,68 @@ AI-powered claim verification system that automatically fact-checks claims by se
 ## Overview
 
 Fakeye is a full-stack web application that helps users verify claims by:
+
 - Searching the web for relevant sources
-- Analyzing evidence using semantic similarity and stance detection
-- Providing verdicts (True/False/Unverifiable) with confidence scores
+- Analyzing evidence using semantic similarity and AI-based stance detection
+- Providing verdicts (True / False / Unverifiable) with confidence scores
+- Explaining why a verdict was reached using natural language reasoning
 - Presenting clickable source evidence for manual review
 
-Built as an academic project demonstrating machine learning, natural language processing, and web development.
+Built as an academic project demonstrating machine learning, natural language processing, and full-stack web development.
 
 ## Features
 
-✅ **Automated Fact-Checking** - Enter any claim and get instant verification  
-✅ **Semantic Search** - Uses sentence transformers for intelligent source ranking  
-✅ **Stance Detection** - Analyzes whether sources support, contradict, or are neutral  
-✅ **Numerical Verification** - Special handling for quantity claims (e.g., "15 months in a year")  
-✅ **Location Verification** - Detects mismatches in role-location claims  
-✅ **Evidence Cards** - View all sources with stance labels and confidence scores  
-✅ **Clean UI** - Modern, responsive design with visual feedback  
+✅ **Automated Fact-Checking** – Enter any claim and get instant verification  
+✅ **Semantic Search** – Uses sentence transformers for intelligent source ranking  
+✅ **AI Stance Detection** – Determines whether evidence supports, contradicts, or is neutral  
+✅ **Verdict Reasoning** – Generates a clear, human-readable explanation for each verdict  
+✅ **Numerical Verification** – Handles quantity-based claims (e.g., "15 months in a year")  
+✅ **Role & Location Verification** – Detects incorrect role–location associations  
+✅ **Evidence Cards** – View sources with stance labels and confidence scores  
+✅ **Clean UI** – Modern, responsive interface with animated feedback
 
 ## Tech Stack
 
 ### Backend
+
 - **Python 3.11+**
-- **FastAPI** - Web framework
-- **Sentence Transformers** - Semantic similarity (all-MiniLM-L6-v2)
-- **SerpAPI** - Web search integration
-- **NumPy** - Numerical computations
+- **FastAPI** – Web framework
+- **Sentence Transformers** – Semantic similarity (all-MiniLM-L6-v2)
+- **Groq API (LLM)** – AI-powered stance detection and reasoning
+- **SerpAPI** – Web search integration
+- **NumPy** – Numerical computations
 
 ### Frontend
-- **React 19** - UI framework
-- **Vite** - Build tool
-- **Tailwind CSS** - Styling
-- **Framer Motion** - Animations
+
+- **React 19**
+- **Vite**
+- **Tailwind CSS**
+- **Framer Motion**
 
 ## Installation
 
 ### Prerequisites
+
 - Python 3.11 or higher
 - Node.js 18 or higher
-- SerpAPI key ([get free key](https://serpapi.com/))
+- [SerpAPI key](https://serpapi.com/) (get free key)
+- [Groq API key](https://console.groq.com/) (get free key)
 
 ### Backend Setup
 
 ```bash
-# Navigate to backend directory
 cd backend
 
-# Create virtual environment
 python -m venv .venv
+.venv\Scripts\activate  # Windows
+# source .venv/bin/activate  # Mac/Linux
 
-# Activate virtual environment
-# Windows:
-.venv\Scripts\activate
-# Mac/Linux:
-source .venv/bin/activate
-
-# Install dependencies
 pip install -r requirements.txt
 
 # Create .env file
-echo "SERPAPI_API_KEY=your_api_key_here" > .env
+SERPAPI_API_KEY=your_serpapi_key
+GROQ_API_KEY=your_groq_key
 
-# Run server
 uvicorn app.main:app --reload
 ```
 
@@ -74,16 +75,13 @@ Backend runs at `http://localhost:8000`
 ### Frontend Setup
 
 ```bash
-# Navigate to frontend directory
 cd frontend
 
-# Install dependencies
 npm install
 
-# Create .env file (optional - defaults to localhost:8000)
-echo "VITE_API_URL=http://localhost:8000" > .env
+# Optional (defaults to localhost:8000)
+VITE_API_URL=http://localhost:8000
 
-# Run development server
 npm run dev
 ```
 
@@ -91,154 +89,106 @@ Frontend runs at `http://localhost:5173`
 
 ## Usage
 
-1. **Start both backend and frontend servers**
-2. **Open browser** to `http://localhost:5173`
-3. **Enter a claim** (e.g., "Is Modi the PM of India?")
-4. **Review verdict** - True/False/Unverifiable with confidence %
-5. **Check evidence** - Click on source cards to verify manually
-
-### Example Queries
-
-✅ **Factual Claims**
-- "Is Biden the president of USA?"
-- "Is the Earth round?"
-- "Are there 12 months in a year?"
-
-✅ **Role Verification**
-- "Is Modi the prime minister of India?"
-- "Is Elon Musk the CEO of Tesla?"
-
-✅ **Numerical Claims**
-- "Are there 365 days in a year?"
-- "Does water boil at 100 degrees Celsius?"
-
-❌ **Not Suitable For**
-- Opinions ("Is pizza the best food?")
-- Future predictions ("Will it rain tomorrow?")
-- Personal information ("What is my phone number?")
+1. Start both backend and frontend servers
+2. Open browser at `http://localhost:5173`
+3. Enter a claim (e.g., "Is Florida in India?")
+4. Review the verdict with confidence score
+5. Read the reasoning explanation
+6. Inspect evidence sources for transparency
 
 ## How It Works
 
 ### 1. Web Search
-- Query sent to SerpAPI
-- Returns top 10 web results with snippets
+
+- Claim is sent to SerpAPI
+- Retrieves top web results with snippets
 
 ### 2. Semantic Ranking
-- Uses `all-MiniLM-L6-v2` sentence transformer
-- Calculates cosine similarity between claim and snippets
-- Ranks sources by relevance
 
-### 3. Stance Detection
-Analyzes each source with priority checks:
-- **Contradictions** - Explicit negations, false claims
-- **Numerical verification** - Exact number matching
-- **Death claims** - Requires explicit evidence
-- **Role claims** - Verifies person + role + location
-- **General claims** - Keyword matching with high thresholds
+- Sentence transformer encodes claim and snippets
+- Cosine similarity ranks evidence by relevance
+
+### 3. AI Stance Detection
+
+Each evidence snippet is analyzed using an LLM to determine whether it:
+
+- **Supports** the claim
+- **Contradicts** the claim
+- Is **Neutral / Unverifiable**
+
+The model also generates a short explanation for its decision.
 
 ### 4. Aggregation
-- Weighted scoring: `(support_score - contradict_score) / total_weight`
-- Confidence boosting for support/contradict stances
-- Final verdict based on aggregate confidence
 
-### 5. Verdict Mapping
-- **True**: 60-100% confidence
-- **False**: 0-40% confidence
-- **Unverifiable**: 40-60% confidence (mixed or insufficient evidence)
+- Evidence is weighted by semantic relevance and stance confidence
+- Support and contradiction scores are aggregated
+- Final verdict confidence is calculated
 
+### 5. Verdict Reasoning
+
+- The strongest supporting or contradicting explanation is surfaced
+- Displayed prominently in the UI as a **Reason** section
 
 ## API Endpoints
 
 ### `POST /predict`
-Main prediction endpoint
 
-**Request:**
+**Request**
+
 ```json
 {
-  "text": "Is Modi the PM of India?"
+  "text": "Is Florida in India?"
 }
 ```
 
-**Response:**
+**Response**
+
 ```json
 {
   "ok": true,
-  "input": "Is Modi the PM of India?",
-  "verdict_percent": 85.3,
-  "verdict_label": "Very Likely True",
-  "verdict_raw_label": "True",
-  "verdict_summary": "High confidence. Multiple sources (5) support this claim.",
+  "input": "Is Florida in India?",
+  "verdict_percent": 95.2,
+  "verdict_raw_label": "False",
+  "verdict_summary": "High confidence. Multiple sources contradict this claim.",
+  "verdict_reason": "Florida is a U.S. state and not part of India.",
   "top_matches": [
     {
-      "publisher": "example.com",
-      "url": "https://example.com/article",
-      "snippet": "Narendra Modi serves as Prime Minister...",
-      "stance": "support",
-      "stance_conf": 0.87,
-      "semantic_sim": 0.92
+      "publisher": "britannica.com",
+      "url": "https://www.britannica.com/place/Florida",
+      "snippet": "Florida is a state in the southeastern United States.",
+      "stance": "contradict",
+      "stance_conf": 0.96,
+      "semantic_sim": 0.91
     }
   ]
 }
 ```
 
-### `POST /predict_debug`
-Debug endpoint with full breakdown
-
-Returns additional `evidence` array and `aggregate_breakdown` object.
-
-## Configuration
-
-### Backend (`backend/.env`)
-```env
-SERPAPI_API_KEY=your_key_here
-```
-
-### Frontend (`frontend/.env`)
-```env
-VITE_API_URL=http://localhost:8000
-```
-
 ## Limitations
 
-- **Knowledge Cutoff**: Relies on current web content
-- **Search Quality**: Limited by SerpAPI result quality
-- **Language**: English only
-- **Context**: Cannot verify claims requiring complex reasoning
-- **Bias**: May reflect biases in web sources
-- **Rate Limits**: Subject to SerpAPI free tier limits (100 searches/month)
+- Relies on publicly available web sources
+- English-language claims only
+- Subject to SerpAPI rate limits
+- Not suitable for opinions or future predictions
+- Should not replace professional fact-checking
 
 ## Future Enhancements
 
-- [ ] Multi-language support
-- [ ] Source credibility scoring
-- [ ] Fact-check database integration (Snopes, PolitiFact)
-- [ ] User accounts and history
-- [ ] Chrome extension
-- [ ] Advanced NLI models (RoBERTa-large-MNLI)
-- [ ] Temporal claim verification
-- [ ] Image/video claim analysis
+- Multi-language support
+- Source credibility scoring
+- Integration with fact-check databases
+- User accounts and saved history
+- Browser extension
+- Advanced NLI models
+- Temporal claim verification
+- Image and video claim analysis
 
-## Contributing
+## Disclaimer
 
-This is an academic project. For improvements:
-
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/improvement`)
-3. Commit changes (`git commit -m "feat: add improvement"`)
-4. Push to branch (`git push origin feature/improvement`)
-5. Open Pull Request
-
-## Acknowledgments
-
-- **Sentence Transformers** - HuggingFace model library
-- **SerpAPI** - Web search API
-- **FastAPI** - Modern Python web framework
-- **React & Vite** - Frontend tooling
-
-## Contact
-
-For questions or feedback about this academic project, please open an issue on GitHub.
+**Fakeye is an academic project.**  
+It should not be used as the sole authority for verifying important or sensitive claims. Always cross-check information with trusted sources.
 
 ---
 
-**⚠️ Disclaimer**: Fakeye is an academic project and should not be used as the sole source for fact-checking important claims. Always verify information through multiple reliable sources.
+**License:** MIT  
+**Contact:** harpreetk2146@gmail.com
