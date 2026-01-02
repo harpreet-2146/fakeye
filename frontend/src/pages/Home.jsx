@@ -1,54 +1,48 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+
 import SearchBar from "../components/SearchBar";
 import VerdictCard from "../components/VerdictCard";
 import EvidenceCard from "../components/EvidenceCard";
+import ReasonCard from "../components/ReasonCard";
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 const HISTORY_KEY = "fakeye_history_v1";
 
-/* ================= LOGIC (UNCHANGED) ================= */
+/* ================= LOGIC ================= */
 
 function mapBackendToVerdict(be) {
-  if (!be) return { verdict: "Unverifiable", confidence: 0, summary: "" };
+  if (!be) {
+    return { verdict: "Unverifiable", confidence: 0, summary: "", reason: "" };
+  }
 
   const rawLabel = be.verdict_raw_label || null;
-  const machineLabel = be.verdict_machine_label || be.verdict || null;
-  const percent = typeof be.verdict_percent === "number" ? be.verdict_percent : null;
+  const percent =
+    typeof be.verdict_percent === "number" ? be.verdict_percent : 0;
 
-  const legacy_verdict = be.verdict;
-  const legacy_score = be.verdict_score || {};
+  let verdict = "Unverifiable";
+  if (rawLabel === "True") verdict = "True";
+  else if (rawLabel === "False") verdict = "False";
 
-  let mappedVerdict;
-  if (rawLabel === "True" || (machineLabel && machineLabel.toLowerCase().includes("true"))) mappedVerdict = "True";
-  else if (rawLabel === "False" || (machineLabel && machineLabel.toLowerCase().includes("false"))) mappedVerdict = "False";
-  else if (rawLabel === "Mixture" || rawLabel === "Unverifiable") mappedVerdict = "Unverifiable";
-  else mappedVerdict = legacy_verdict === "likely_real" ? "True" : legacy_verdict === "suspicious" ? "False" : "Unverifiable";
-
-  let confidence = 0;
-  if (percent !== null) confidence = Math.round(Math.max(0, Math.min(100, percent)));
-  else if (legacy_score?.result_count || legacy_score?.credible_host_count) {
-    const rc = legacy_score.result_count || 0;
-    const cred = legacy_score.credible_host_count || 0;
-    confidence = Math.min(100, Math.round((cred / Math.max(1, rc)) * 100));
-  } else confidence = 30;
+  const confidence = Math.round(Math.max(0, Math.min(100, percent)));
 
   const summary =
     be.verdict_summary ||
-    be.summary ||
-    (mappedVerdict === "True"
-      ? "Multiple credible sources report similar information."
-      : mappedVerdict === "False"
-      ? "No matching credible sources found; the claim appears dubious."
-      : "Some matches found but context is uncertain — inspect the links.");
+    (verdict === "True"
+      ? "Multiple credible sources support this claim."
+      : verdict === "False"
+      ? "Credible sources contradict this claim."
+      : "Available evidence is inconclusive.");
 
-  return { verdict: mappedVerdict, confidence, summary };
+  const reason = be.verdict_reason || "";
+
+  return { verdict, confidence, summary, reason };
 }
 
-function mapMatchesToEvidence(matches = [], backendLabel) {
+function mapMatchesToEvidence(matches = []) {
   return matches.map((m) => {
-    const url = m.url || m.link || m.href || null;
-    let publisher = m.publisher || m.title || null;
+    const url = m.url || null;
+    let publisher = m.publisher || null;
 
     if (!publisher && url) {
       try {
@@ -58,21 +52,12 @@ function mapMatchesToEvidence(matches = [], backendLabel) {
       }
     }
 
-    const snippet = m.snippet || m.description || m.summary || "";
-
-    let stance = (m.stance || "").toLowerCase();
-    if (!stance) {
-      if (backendLabel?.toLowerCase().includes("true")) stance = "support";
-      else if (backendLabel?.toLowerCase().includes("false")) stance = "contradict";
-      else stance = "neutral";
-    }
-
     return {
       url,
       publisher,
-      snippet,
-      stance,
-      stance_conf: Number(m.stance_conf || 0.6),
+      snippet: m.snippet || "",
+      stance: m.stance || "neutral",
+      stance_conf: Number(m.stance_conf || 0.5),
       semantic_sim: Number(m.semantic_sim || 0.5),
     };
   });
@@ -104,6 +89,7 @@ export default function Home() {
     setQuery(q);
     setResultRaw(null);
     setError("");
+
     if (!q?.trim()) return;
 
     setLoading(true);
@@ -115,8 +101,8 @@ export default function Home() {
       });
 
       if (!res.ok) throw new Error(`Server returned ${res.status}`);
-      const json = await res.json();
 
+      const json = await res.json();
       setResultRaw(json);
       setHistory((h) => [{ q, raw: json, ts: Date.now() }, ...h].slice(0, 30));
     } catch (e) {
@@ -132,10 +118,7 @@ export default function Home() {
   }
 
   const mapped = mapBackendToVerdict(resultRaw);
-  const evidenceItems = mapMatchesToEvidence(
-    resultRaw?.top_matches || resultRaw?.matches || [],
-    resultRaw?.verdict_raw_label || resultRaw?.verdict_machine_label
-  );
+  const evidenceItems = mapMatchesToEvidence(resultRaw?.top_matches || []);
 
   /* ================= UI ================= */
 
@@ -158,7 +141,7 @@ export default function Home() {
           </h1>
           <p className="text-slate-300 max-w-2xl">
             Quick claim checking — finds supporting or contradicting reporting
-            across the web and surfaces concise evidence.
+            across the web and explains why.
           </p>
         </motion.header>
 
@@ -176,10 +159,18 @@ export default function Home() {
                   exit={{ opacity: 0 }}
                   className="p-6 neu rounded-2xl"
                 >
-                  <div className="text-sm text-slate-400">Searching the web…</div>
+                  <div className="text-sm text-slate-400">
+                    Searching the web…
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {error && (
+              <div className="p-4 rounded-xl bg-rose-500/10 text-rose-300">
+                {error}
+              </div>
+            )}
 
             {resultRaw && !loading && (
               <>
@@ -188,6 +179,8 @@ export default function Home() {
                   confidence={mapped.confidence}
                   summary={mapped.summary}
                 />
+
+                <ReasonCard reason={mapped.reason} />
 
                 <section>
                   <h3 className="text-sm text-slate-400 mb-3">
@@ -199,7 +192,9 @@ export default function Home() {
                         <EvidenceCard key={i} item={it} />
                       ))
                     ) : (
-                      <div className="text-slate-400">No evidence found.</div>
+                      <div className="text-slate-400">
+                        No evidence found.
+                      </div>
                     )}
                   </div>
                 </section>
@@ -222,6 +217,7 @@ export default function Home() {
                     No recent checks yet.
                   </div>
                 )}
+
                 {history.map((h, i) => (
                   <button
                     key={i}
@@ -250,4 +246,3 @@ export default function Home() {
     </div>
   );
 }
-
